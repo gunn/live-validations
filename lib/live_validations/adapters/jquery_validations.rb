@@ -78,14 +78,20 @@ module LiveValidations
       
       validates :uniqueness do |v, attribute|
         model_class = v.adapter_instance.active_record_instance.class.name
-        v[:validators][attribute]['remote'] = "/live_validations/uniqueness?model_class=#{model_class}"
+        model_id = v.adapter_instance.active_record_instance.id
+        v[:validators][attribute]['remote'] = "/live_validations/uniqueness?model_class=#{model_class}&model_id=#{model_id}"
         v[:messages][attribute]['remote'] = v.message_for(attribute, :taken)
       end
     
       response :uniqueness do |r|
         column  = r.params[r.params[:model_class].downcase].keys.first
         value   = r.params[r.params[:model_class].downcase][column]
-        r.params[:model_class].constantize.count(:conditions => {column => value}) == 0
+        id      = r.params[:model_id]
+
+        !r.params[:model_class].constantize.exists?(
+            ["id <> :id AND #{ActiveRecord::Base.connection.quote_string(column)} = :column",
+             {:id => id, :column => value}]
+        )
       end
       
       renders_inline do |a|
